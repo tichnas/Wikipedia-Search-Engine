@@ -5,10 +5,16 @@ from constants import DATA_FILE, PAGES_IN_FILE
 
 ##################################
 ##   Index Format
-##   word -> [
-##       [pages which have word in title],
-##       [pages which have word in text]
+##
+##   token -> [
+##       [
+##           page num,
+##           freq of token in title,
+##           freq of token in text
+##       ],
+##       ...
 ##   ]
+##
 ##################################
 
 index = {}
@@ -59,7 +65,7 @@ def tokenize(data):
 def index_page():
     types = [title, text]
     for i in range(0, len(types)):
-        index_tokens(i, tokenize(types[i]))
+        index_tokens(i + 1, tokenize(types[i]))
 
 
 def index_tokens(type, tokens):
@@ -68,10 +74,12 @@ def index_tokens(type, tokens):
             continue
 
         if token not in index:
-            index[token] = [[], []]
+            index[token] = []
 
-        if not index[token][type] or index[token][type][-1] != page_num:
-            index[token][type].append(page_num)
+        if not index[token] or index[token][-1][0] != page_num:
+            index[token].append([page_num, 0, 0])
+
+        index[token][-1][type] += 1
 
 
 def dump():
