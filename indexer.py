@@ -1,7 +1,9 @@
 import xml.sax
 import re
+from nltk.stem import PorterStemmer
 
 from constants import DATA_FILE, PAGES_IN_FILE
+from stop_words import stop_words
 
 ##################################
 ##   Index Format
@@ -25,6 +27,8 @@ pages_done = 0
 dump_num = 0
 title = ""
 text = ""
+
+stemmer = PorterStemmer()
 
 
 class XMLHandler(xml.sax.ContentHandler):
@@ -61,7 +65,7 @@ class XMLHandler(xml.sax.ContentHandler):
 
 
 def tokenize(data):
-    to_keep = ["Infobox", "}}", "[[Category:", "]]"]
+    to_keep = {"Infobox", "}}", "[[Category:", "]]"}
     escaped_to_keep = ["Infobox", "\}\}", "\[\[Category:", "\]\]"]
 
     left = re.split("(" + ")|(".join(escaped_to_keep) + ")", data)
@@ -119,8 +123,10 @@ def index_page():
 
 def index_tokens(type, tokens):
     for token in tokens:
-        if not token:
+        if not token or len(token) <= 1 or token.lower() in stop_words:
             continue
+
+        token = stemmer.stem(token)
 
         if token not in index:
             index[token] = []
