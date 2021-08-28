@@ -1,2 +1,2 @@
-DATA_FILE = "./data_example"
-PAGES_IN_FILE = 1
+# [title, body, infobox, category]
+WEIGHTAGE = [10, 1, 1, 5]

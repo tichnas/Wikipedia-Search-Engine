@@ -3,7 +3,7 @@ import re
 from nltk.stem import PorterStemmer
 import pickle
 
-from constants import DATA_FILE, PAGES_IN_FILE
+from constants import DATA_FILE, PAGES_IN_FILE, WEIGHTAGE
 from stop_words import stop_words
 
 ##################################
@@ -35,6 +35,11 @@ from stop_words import stop_words
 ##       ],
 ##       ...
 ##   ]
+##
+##
+##   Index Format 3
+##
+##   token -> [ [page num, score] , ... ]
 ##
 ##################################
 
@@ -72,7 +77,7 @@ class XMLHandler(xml.sax.ContentHandler):
             dump()
         elif name == "page":
             pages_done += 1
-            index_page_1()
+            index_page_3()
         elif name == "title":
             title = self.data
         elif name == "text":
@@ -83,6 +88,8 @@ class XMLHandler(xml.sax.ContentHandler):
 
 
 def stem(token):
+    token = token.lower()
+
     if token not in stemmed_token:
         stemmed_token[token] = stemmer.stem(token)
 
@@ -185,6 +192,45 @@ def index_page_2():
     index_tokens_2("c", category_tokens)
 
 
+def index_page_3():
+    index_tokens_3(0, tokenize(title))
+
+    text_tokens = tokenize(text)
+
+    body_tokens = []
+    infobox_tokens = []
+    category_tokens = []
+
+    is_special = False  # Anything True will result in special as True
+    is_infobox = False
+    is_category = False
+
+    for token in text_tokens:
+        if token == "Infobox" and not is_special:
+            is_infobox = True
+            is_special = True
+        elif token == "[[Category:" and not is_special:
+            is_category = True
+            is_special = True
+        elif token == "}}" and is_infobox:
+            is_infobox = False
+            is_special = False
+        elif token == "]]" and is_category:
+            is_category = False
+            is_special = False
+        elif token.isalnum():
+            if is_infobox:
+                infobox_tokens.append(token)
+            elif is_category:
+                category_tokens.append(token)
+            else:
+                body_tokens.append(token)
+
+    index_tokens_3(1, body_tokens)
+    index_tokens_3(2, infobox_tokens)
+    index_tokens_3(3, category_tokens)
+
+
 def index_tokens_1(type, tokens):
     for token in tokens:
         if not token or len(token) <= 1 or token.lower() in stop_words:
@@ -218,6 +264,22 @@ def index_tokens_2(type, tokens):
             index[token][-1][1][type] = 1
         else:
             index[token][-1][1][type] += 1
+
+
+def index_tokens_3(type, tokens):
+    for token in tokens:
+        if not token or len(token) <= 1 or token.lower() in stop_words:
+            continue
+
+        token = stem(token)
+
+        if token not in index:
+            index[token] = []
+
+        if not index[token] or index[token][-1][0] != page_num:
+            index[token].append([page_num, 0])
+
+        index[token][-1][1] += WEIGHTAGE[type]
 
 
 def dump():
