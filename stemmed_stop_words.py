@@ -1,0 +1,17 @@
+stemmed_stop_words = {
+    "link",
+    "stub",
+    "author",
+    "use",
+    "list",
+    "infobox",
+    "reflist",
+    "titl",
+    "ref",
+    "imag",
+    "name",
+    "refer",
+    "redirect",
+    "categori",
+    "web",
+}

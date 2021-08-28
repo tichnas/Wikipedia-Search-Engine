@@ -5,6 +5,7 @@ import pickle
 
 from constants import DATA_FILE, PAGES_IN_FILE, WEIGHTAGE
 from stop_words import stop_words
+from stemmed_stop_words import stemmed_stop_words
 
 ##################################
 ##   Index Format 1
@@ -81,15 +82,13 @@ class XMLHandler(xml.sax.ContentHandler):
         elif name == "title":
             title = self.data
         elif name == "text":
-            text = self.data
+            text = clean(self.data)
 
     def characters(self, content):
         self.data += content
 
 
 def stem(token):
-    token = token.lower()
-
     if token not in stemmed_token:
         stemmed_token[token] = stemmer.stem(token)
 
@@ -112,6 +111,58 @@ def tokenize(data):
             ans.extend(re.split("[^a-zA-Z0-9]+", token))
 
     return ans
+
+
+def clean(data):
+    data = data.lower()
+
+    # remove URLs
+    data = re.sub("https?:\/\/[^ \|\}<\n]*", " ", data)
+
+    data = re.sub("<redirect", " ", data)
+
+    data = re.sub("name=", " ", data)
+
+    data = re.sub("ref=", " ", data)
+    data = re.sub("\/ref", " ", data)
+    data = re.sub("referee=", " ", data)
+
+    data = re.sub("\{\{in lang.*\}\}", " ", data)
+
+    data = re.sub("url=", " ", data)
+
+    data = re.sub("short description", " ", data)
+
+    data = re.sub("\{\{cite", " ", data)
+
+    data = re.sub("date=", " ", data)
+
+    data = re.sub("see also", " ", data)
+
+    data = re.sub(".jpg", " ", data)
+    data = re.sub(".png", " ", data)
+
+    data = re.sub("\{\{defaultsort:", " ", data)
+
+    # remove everything like &lt; something &gt;
+    data = re.sub("&lt; *[^ ]* *&gt;", " ", data)
+
+    # remove css
+    data = re.sub("style=&quot;.*&quot;", " ", data)
+
+    # remove everything like |something=
+    data = re.sub("\|.{0,50}=", " ", data)
+
+    data = re.sub("nbsp;", " ", data)
+    data = re.sub("&amp;", " ", data)
+    data = re.sub("&lt;", " ", data)
+    data = re.sub("&gt;", " ", data)
+
+    data = re.sub("[0-9]*px", " ", data)
+
+    data = re.sub("wikipedia:", " ", data)
+
+    return data
 
 
 def index_page_1():
@@ -193,7 +244,7 @@ def index_page_2():
 
 
 def index_page_3():
-    index_tokens_3(0, tokenize(title))
+    index_tokens_3(0, tokenize(title), False)
 
     text_tokens = tokenize(text)
 
@@ -266,12 +317,21 @@ def index_tokens_2(type, tokens):
             index[token][-1][1][type] += 1
 
 
-def index_tokens_3(type, tokens):
+def index_tokens_3(type, tokens, check_stop_words=True):
     for token in tokens:
-        if not token or len(token) <= 1 or token.lower() in stop_words:
+        if not token or len(token) <= 1:
+            continue
+
+        if token.isnumeric() and len(token) > 4:
+            continue
+
+        if check_stop_words and token in stop_words:
             continue
 
         token = stem(token)
+
+        if check_stop_words and token in stemmed_stop_words:
+            continue
 
         if token not in index:
             index[token] = []
