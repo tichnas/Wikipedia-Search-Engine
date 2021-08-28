@@ -96,8 +96,26 @@ def stem(token):
 
 
 def tokenize(data):
-    to_keep = {"Infobox", "}}", "[[Category:", "]]"}
-    escaped_to_keep = ["Infobox", "\}\}", "\[\[Category:", "\]\]"]
+    data = data.lower()
+
+    to_keep = {
+        "infobox",
+        "info-end}}",
+        "[[category:",
+        "]]",
+        "==external links==",
+        "==references==",
+        "==link or reference end==",
+    }
+    escaped_to_keep = [
+        "infobox",
+        "info-end\}\}",
+        "\[\[category:",
+        "\]\]",
+        "==external links==",
+        "==references==",
+        "==link or reference end==",
+    ]
 
     left = re.split("(" + ")|(".join(escaped_to_keep) + ")", data)
     ans = []
@@ -126,6 +144,11 @@ def clean(data):
     data = re.sub("ref=", " ", data)
     data = re.sub("\/ref", " ", data)
     data = re.sub("referee=", " ", data)
+
+    data = re.sub("colspan=[^ ]*", " ", data)
+    data = re.sub("rowspan=[^ ]*", " ", data)
+
+    data = re.sub("\{\{reflist\}\}", " ", data)
 
     data = re.sub("\{\{in lang.*\}\}", " ", data)
 
@@ -251,35 +274,51 @@ def index_page_3():
     body_tokens = []
     infobox_tokens = []
     category_tokens = []
+    reference_tokens = []
+    link_tokens = []
 
     is_special = False  # Anything True will result in special as True
     is_infobox = False
     is_category = False
+    is_link = False
+    is_reference = False
 
     for token in text_tokens:
-        if token == "Infobox" and not is_special:
+        if token == "infobox" and not is_special:
             is_infobox = True
-            is_special = True
-        elif token == "[[Category:" and not is_special:
+        elif token == "[[category:" and not is_special:
             is_category = True
-            is_special = True
-        elif token == "}}" and is_infobox:
+        elif token == "==external links==" and not is_special:
+            is_link = True
+        elif token == "==references==" and not is_special:
+            is_reference = True
+        elif token == "info-end}}" and is_infobox:
             is_infobox = False
-            is_special = False
         elif token == "]]" and is_category:
             is_category = False
-            is_special = False
+        elif token == "==link or reference end==" and is_link:
+            is_link = False
+        elif token == "==link or reference end==" and is_reference:
+            is_reference = False
         elif token.isalnum():
             if is_infobox:
                 infobox_tokens.append(token)
             elif is_category:
                 category_tokens.append(token)
+            elif is_link:
+                link_tokens.append(token)
+            elif is_reference:
+                reference_tokens.append(token)
             else:
                 body_tokens.append(token)
+
+        is_special = is_infobox or is_category or is_link or is_reference
 
     index_tokens_3(1, body_tokens)
     index_tokens_3(2, infobox_tokens)
     index_tokens_3(3, category_tokens)
+    index_tokens_3(4, link_tokens)
+    index_tokens_3(5, reference_tokens)
 
 
 def index_tokens_1(type, tokens):
@@ -369,5 +408,11 @@ while True:
 
     if not line:
         break
+
+    if len(line) == 1:
+        line = "==link or reference end==" + line
+
+    if line == "}}\n":
+        line = "info-end}}\n"
 
     parser.feed(line)
