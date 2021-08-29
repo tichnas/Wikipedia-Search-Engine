@@ -38,12 +38,12 @@ token_score = {}
 class XMLHandler(xml.sax.ContentHandler):
     def __init__(self):
         xml.sax.ContentHandler.__init__(self)
-        self.data = ""
+        self.data = []
 
     def startElement(self, name, attrs):
         global page_num
 
-        self.data = ""
+        self.data = []
 
         if name == "page":
             if pages_done == PAGES_IN_FILE:
@@ -60,12 +60,12 @@ class XMLHandler(xml.sax.ContentHandler):
             pages_done += 1
             index_page()
         elif name == "title":
-            title = self.data
+            title = "".join(self.data)
         elif name == "text":
-            text = clean(self.data)
+            text = clean("".join(self.data))
 
     def characters(self, content):
-        self.data += content
+        self.data.append(content)
 
 
 def index_page():
