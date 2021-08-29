@@ -1,7 +1,16 @@
 import re
+import unicodedata
+
+
+def strip_accents(s):
+    return "".join(
+        c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn"
+    )
+
 
 def tokenize(data):
     data = data.lower()
+    data = strip_accents(data)
 
     to_keep = {
         "infobox",
