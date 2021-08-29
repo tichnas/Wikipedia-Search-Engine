@@ -1,12 +1,12 @@
 import xml.sax
-import re
-from nltk.stem import PorterStemmer
 import pickle
 
 from constants import DATA_FILE, PAGES_IN_FILE, WEIGHTAGE
 from stop_words import stop_words
 from stemmed_stop_words import stemmed_stop_words
 from number_system import dec_to_char, char_to_dec
+from stemmer import Stemmer
+from helper import tokenize, clean
 
 ##################################
 ##
@@ -26,8 +26,7 @@ dump_num = 0
 title = ""
 text = ""
 
-stemmer = PorterStemmer()
-stemmed_token = {}
+stemmer = Stemmer()
 
 benchmark_score = 0
 for i in WEIGHTAGE:
@@ -67,103 +66,6 @@ class XMLHandler(xml.sax.ContentHandler):
 
     def characters(self, content):
         self.data += content
-
-
-def stem(token):
-    if token not in stemmed_token:
-        stemmed_token[token] = stemmer.stem(token)
-
-    return stemmed_token[token]
-
-
-def tokenize(data):
-    data = data.lower()
-
-    to_keep = {
-        "infobox",
-        "info-end}}",
-        "[[category:",
-        "]]",
-        "==external links==",
-        "==references==",
-        "==link or reference end==",
-        "<ref",
-        "</ref>",
-    }
-    escaped_to_keep = [
-        "infobox",
-        "info-end\}\}",
-        "\[\[category:",
-        "\]\]",
-        "==external links==",
-        "==references==",
-        "==link or reference end==",
-        "<ref",
-        "<\/ref>",
-    ]
-
-    left = re.split("(" + ")|(".join(escaped_to_keep) + ")", data)
-    ans = []
-
-    for token in left:
-        if not token:
-            continue
-        if token in to_keep:
-            ans.append(token)
-        else:
-            ans.extend(re.split("[^a-zA-Z0-9]+", token))
-
-    return ans
-
-
-def clean(data):
-    data = data.lower()
-
-    # remove URLs
-    data = re.sub("https?:\/\/[^ \|\}<\n]*", " ", data)
-
-    data = re.sub("<redirect", " ", data)
-
-    data = re.sub("name=", " ", data)
-
-    data = re.sub("ref=", " ", data)
-    data = re.sub("referee=", " ", data)
-
-    data = re.sub("colspan=[^ ]*", " ", data)
-    data = re.sub("rowspan=[^ ]*", " ", data)
-
-    data = re.sub("\{\{reflist\}\}", " ", data)
-
-    data = re.sub("\{\{in lang.*\}\}", " ", data)
-    data = re.sub("language=.*\}\}", " ", data)
-
-    data = re.sub("url=", " ", data)
-
-    data = re.sub("short description", " ", data)
-
-    data = re.sub("\{\{cite[^\|]*", " ", data)
-
-    data = re.sub("date=", " ", data)
-
-    data = re.sub("see also", " ", data)
-
-    data = re.sub(".jpg", " ", data)
-    data = re.sub(".png", " ", data)
-    data = re.sub(".svg", " ", data)
-
-    data = re.sub("\{\{defaultsort:", " ", data)
-
-    # remove css
-    data = re.sub('style=".*"', " ", data)
-
-    # remove everything like |something=
-    data = re.sub("\|.{0,50}=", " ", data)
-
-    data = re.sub("[0-9]*px", " ", data)
-
-    data = re.sub("wikipedia:", " ", data)
-
-    return data
 
 
 def index_page():
@@ -240,7 +142,7 @@ def index_tokens(type, tokens, check_stop_words=True):
         if check_stop_words and len(token) <= 2:
             continue
 
-        token = stem(token)
+        token = stemmer.stem(token)
 
         if check_stop_words and token in stemmed_stop_words:
             continue
