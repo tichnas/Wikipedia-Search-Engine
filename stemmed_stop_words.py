@@ -13,7 +13,6 @@ stemmed_stop_words = {
     "refer",
     "redirect",
     "categori",
-    "web",
     "file",
     "2009",
     "may",

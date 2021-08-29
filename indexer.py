@@ -87,6 +87,8 @@ def tokenize(data):
         "==external links==",
         "==references==",
         "==link or reference end==",
+        "<ref",
+        "</ref>",
     }
     escaped_to_keep = [
         "infobox",
@@ -96,6 +98,8 @@ def tokenize(data):
         "==external links==",
         "==references==",
         "==link or reference end==",
+        "<ref",
+        "<\/ref>",
     ]
 
     left = re.split("(" + ")|(".join(escaped_to_keep) + ")", data)
@@ -123,7 +127,6 @@ def clean(data):
     data = re.sub("name=", " ", data)
 
     data = re.sub("ref=", " ", data)
-    data = re.sub("\/ref", " ", data)
     data = re.sub("referee=", " ", data)
 
     data = re.sub("colspan=[^ ]*", " ", data)
@@ -132,12 +135,13 @@ def clean(data):
     data = re.sub("\{\{reflist\}\}", " ", data)
 
     data = re.sub("\{\{in lang.*\}\}", " ", data)
+    data = re.sub("language=.*\}\}", " ", data)
 
     data = re.sub("url=", " ", data)
 
     data = re.sub("short description", " ", data)
 
-    data = re.sub("\{\{cite", " ", data)
+    data = re.sub("\{\{cite[^\|]*", " ", data)
 
     data = re.sub("date=", " ", data)
 
@@ -149,19 +153,11 @@ def clean(data):
 
     data = re.sub("\{\{defaultsort:", " ", data)
 
-    # remove everything like &lt; something &gt;
-    data = re.sub("&lt; *[^ ]* *&gt;", " ", data)
-
     # remove css
-    data = re.sub("style=&quot;.*&quot;", " ", data)
+    data = re.sub('style=".*"', " ", data)
 
     # remove everything like |something=
     data = re.sub("\|.{0,50}=", " ", data)
-
-    data = re.sub("nbsp;", " ", data)
-    data = re.sub("&amp;", " ", data)
-    data = re.sub("&lt;", " ", data)
-    data = re.sub("&gt;", " ", data)
 
     data = re.sub("[0-9]*px", " ", data)
 
@@ -186,9 +182,14 @@ def index_page():
     is_category = False
     is_link = False
     is_reference = False
+    is_ref = False
 
     for token in text_tokens:
-        if token == "infobox" and not is_special:
+        if token == "<ref":
+            is_ref = True
+        elif token == "</ref>":
+            is_ref = False
+        elif token == "infobox" and not is_special:
             is_infobox = True
         elif token == "[[category:" and not is_special:
             is_category = True
@@ -205,14 +206,14 @@ def index_page():
         elif token == "==link or reference end==" and is_reference:
             is_reference = False
         elif token.isalnum():
-            if is_infobox:
+            if is_reference or is_ref:
+                reference_tokens.append(token)
+            elif is_infobox:
                 infobox_tokens.append(token)
             elif is_category:
                 category_tokens.append(token)
             elif is_link:
                 link_tokens.append(token)
-            elif is_reference:
-                reference_tokens.append(token)
             else:
                 body_tokens.append(token)
 
@@ -263,7 +264,7 @@ def index_tokens(type, tokens, check_stop_words=True):
 
 
 def dump():
-    global index, pages_done, dump_num
+    global index, pages_done, dump_num, token_score
 
     print()
     print(dump_num)
@@ -279,6 +280,7 @@ def dump():
     pickle.dump(index, open("index" + str(dump_num), "wb"))
 
     index = {}
+    token_score = {}
     pages_done = 0
     dump_num += 1
 
