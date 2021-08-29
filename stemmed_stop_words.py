@@ -14,4 +14,7 @@ stemmed_stop_words = {
     "redirect",
     "categori",
     "web",
+    "file",
+    "2009",
+    "may",
 }

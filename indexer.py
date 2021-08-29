@@ -6,41 +6,16 @@ import pickle
 from constants import DATA_FILE, PAGES_IN_FILE, WEIGHTAGE
 from stop_words import stop_words
 from stemmed_stop_words import stemmed_stop_words
+from number_system import dec_to_char, char_to_dec
 
 ##################################
-##   Index Format 1
 ##
-##   token -> [
-##       [
-##           page num,
-##           freq of token in Title,
-##           freq of token in Body,
-##           freq of token in Infobox,
-##           freq of token in Category,
-##       ],
-##       ...
-##   ]
+##   Index Format
 ##
+##   token -> [ [page num, scoreX] , ... ]
 ##
-##   Index Format 2
-##
-##   token -> [
-##       [
-##           page num,
-##          {
-##              't': freq of token in Title,
-##              'b': freq of token in Body,
-##              'i': freq of token in Infobox,
-##              'c': freq of token in Category,
-##          }
-##       ],
-##       ...
-##   ]
-##
-##
-##   Index Format 3
-##
-##   token -> [ [page num, score] , ... ]
+##   score = weighted score
+##   X = character from custom number system to tell occurence in title, body, etc.
 ##
 ##################################
 
@@ -53,6 +28,12 @@ text = ""
 
 stemmer = PorterStemmer()
 stemmed_token = {}
+
+benchmark_score = 0
+for i in WEIGHTAGE:
+    benchmark_score += i
+
+token_score = {}
 
 
 class XMLHandler(xml.sax.ContentHandler):
@@ -78,7 +59,7 @@ class XMLHandler(xml.sax.ContentHandler):
             dump()
         elif name == "page":
             pages_done += 1
-            index_page_3()
+            index_page()
         elif name == "title":
             title = self.data
         elif name == "text":
@@ -164,6 +145,7 @@ def clean(data):
 
     data = re.sub(".jpg", " ", data)
     data = re.sub(".png", " ", data)
+    data = re.sub(".svg", " ", data)
 
     data = re.sub("\{\{defaultsort:", " ", data)
 
@@ -188,86 +170,8 @@ def clean(data):
     return data
 
 
-def index_page_1():
-    index_tokens_1(1, tokenize(title))
-
-    text_tokens = tokenize(text)
-
-    body_tokens = []
-    infobox_tokens = []
-    category_tokens = []
-
-    is_special = False  # Anything True will result in special as True
-    is_infobox = False
-    is_category = False
-
-    for token in text_tokens:
-        if token == "Infobox" and not is_special:
-            is_infobox = True
-            is_special = True
-        elif token == "[[Category:" and not is_special:
-            is_category = True
-            is_special = True
-        elif token == "}}" and is_infobox:
-            is_infobox = False
-            is_special = False
-        elif token == "]]" and is_category:
-            is_category = False
-            is_special = False
-        elif token.isalnum():
-            if is_infobox:
-                infobox_tokens.append(token)
-            elif is_category:
-                category_tokens.append(token)
-            else:
-                body_tokens.append(token)
-
-    index_tokens_1(2, body_tokens)
-    index_tokens_1(3, infobox_tokens)
-    index_tokens_1(4, category_tokens)
-
-
-def index_page_2():
-    index_tokens_2("t", tokenize(title))
-
-    text_tokens = tokenize(text)
-
-    body_tokens = []
-    infobox_tokens = []
-    category_tokens = []
-
-    is_special = False  # Anything True will result in special as True
-    is_infobox = False
-    is_category = False
-
-    for token in text_tokens:
-        if token == "Infobox" and not is_special:
-            is_infobox = True
-            is_special = True
-        elif token == "[[Category:" and not is_special:
-            is_category = True
-            is_special = True
-        elif token == "}}" and is_infobox:
-            is_infobox = False
-            is_special = False
-        elif token == "]]" and is_category:
-            is_category = False
-            is_special = False
-        elif token.isalnum():
-            if is_infobox:
-                infobox_tokens.append(token)
-            elif is_category:
-                category_tokens.append(token)
-            else:
-                body_tokens.append(token)
-
-    index_tokens_2("b", body_tokens)
-    index_tokens_2("i", infobox_tokens)
-    index_tokens_2("c", category_tokens)
-
-
-def index_page_3():
-    index_tokens_3(0, tokenize(title), False)
+def index_page():
+    index_tokens(0, tokenize(title), False)
 
     text_tokens = tokenize(text)
 
@@ -314,49 +218,14 @@ def index_page_3():
 
         is_special = is_infobox or is_category or is_link or is_reference
 
-    index_tokens_3(1, body_tokens)
-    index_tokens_3(2, infobox_tokens)
-    index_tokens_3(3, category_tokens)
-    index_tokens_3(4, link_tokens)
-    index_tokens_3(5, reference_tokens)
+    index_tokens(1, body_tokens)
+    index_tokens(2, infobox_tokens)
+    index_tokens(3, category_tokens)
+    index_tokens(4, link_tokens)
+    index_tokens(5, reference_tokens)
 
 
-def index_tokens_1(type, tokens):
-    for token in tokens:
-        if not token or len(token) <= 1 or token.lower() in stop_words:
-            continue
-
-        token = stem(token)
-
-        if token not in index:
-            index[token] = []
-
-        if not index[token] or index[token][-1][0] != page_num:
-            index[token].append([page_num, 0, 0, 0, 0])
-
-        index[token][-1][type] += 1
-
-
-def index_tokens_2(type, tokens):
-    for token in tokens:
-        if not token or len(token) <= 1 or token.lower() in stop_words:
-            continue
-
-        token = stem(token)
-
-        if token not in index:
-            index[token] = []
-
-        if not index[token] or index[token][-1][0] != page_num:
-            index[token].append([page_num, dict()])
-
-        if type not in index[token][-1][1]:
-            index[token][-1][1][type] = 1
-        else:
-            index[token][-1][1][type] += 1
-
-
-def index_tokens_3(type, tokens, check_stop_words=True):
+def index_tokens(type, tokens, check_stop_words=True):
     for token in tokens:
         if not token or len(token) <= 1:
             continue
@@ -365,6 +234,9 @@ def index_tokens_3(type, tokens, check_stop_words=True):
             continue
 
         if check_stop_words and token in stop_words:
+            continue
+
+        if check_stop_words and len(token) <= 2:
             continue
 
         token = stem(token)
@@ -376,9 +248,18 @@ def index_tokens_3(type, tokens, check_stop_words=True):
             index[token] = []
 
         if not index[token] or index[token][-1][0] != page_num:
-            index[token].append([page_num, 0])
+            index[token].append([page_num, "00"])
 
-        index[token][-1][1] += WEIGHTAGE[type]
+        prev_score = int(index[token][-1][1][:-1])
+        prev_score_type = char_to_dec[index[token][-1][1][-1]]
+        new_score = prev_score + WEIGHTAGE[type]
+        new_score_type = dec_to_char[prev_score_type | (1 << type)]
+
+        index[token][-1][1] = str(new_score) + new_score_type
+
+        if token not in token_score:
+            token_score[token] = 0
+        token_score[token] += WEIGHTAGE[type]
 
 
 def dump():
@@ -387,9 +268,13 @@ def dump():
     print()
     print(dump_num)
     print()
+
+    to_del = []
     for token in index:
-        print(token, ": ", index[token])
-    print()
+        if token_score[token] < benchmark_score / 4:
+            to_del.append(token)
+    for token in to_del:
+        del index[token]
 
     pickle.dump(index, open("index" + str(dump_num), "wb"))
 
