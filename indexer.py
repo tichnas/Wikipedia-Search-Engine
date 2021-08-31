@@ -4,35 +4,25 @@ import pickle
 from constants import DATA_FILE, PAGES_IN_FILE, WEIGHTAGE
 from stop_words import stop_words
 from stemmed_stop_words import stemmed_stop_words
-from number_system import dec_to_char, char_to_dec
 from stemmer import Stemmer
+from index import Index
 from helper import tokenize, clean
 
-##################################
-##
-##   Index Format
-##
-##   token -> [ [page num, scoreX] , ... ]
-##
-##   score = weighted score
-##   X = character from custom number system to tell occurence in title, body, etc.
-##
-##################################
 
-index = {}
 page_num = 0
 pages_done = 0
 dump_num = 0
 title = ""
 text = ""
-
-stemmer = Stemmer()
+tokens_encountered = set()
+tokens_indexed = set()
 
 benchmark_score = 0
 for i in WEIGHTAGE:
     benchmark_score += i
 
-token_score = {}
+index = Index(benchmark_score / 4)
+stemmer = Stemmer()
 
 
 class XMLHandler(xml.sax.ContentHandler):
@@ -130,6 +120,9 @@ def index_page():
 
 def index_tokens(type, tokens, check_stop_words=True):
     for token in tokens:
+        if token:
+            tokens_encountered.add(token)
+
         if not token or len(token) <= 1:
             continue
 
@@ -147,22 +140,7 @@ def index_tokens(type, tokens, check_stop_words=True):
         if check_stop_words and token in stemmed_stop_words:
             continue
 
-        if token not in index:
-            index[token] = []
-
-        if not index[token] or index[token][-1][0] != page_num:
-            index[token].append([page_num, "00"])
-
-        prev_score = int(index[token][-1][1][:-1])
-        prev_score_type = char_to_dec[index[token][-1][1][-1]]
-        new_score = prev_score + WEIGHTAGE[type]
-        new_score_type = dec_to_char[prev_score_type | (1 << type)]
-
-        index[token][-1][1] = str(new_score) + new_score_type
-
-        if token not in token_score:
-            token_score[token] = 0
-        token_score[token] += WEIGHTAGE[type]
+        index.add(token, page_num, type)
 
 
 def dump():
@@ -172,17 +150,12 @@ def dump():
     print(dump_num)
     print()
 
-    to_del = []
-    for token in index:
-        if token_score[token] < benchmark_score / 4:
-            to_del.append(token)
-    for token in to_del:
-        del index[token]
+    index_file = open("index_txt" + str(dump_num), "w")
 
-    pickle.dump(index, open("index" + str(dump_num), "wb"))
+    index_file.write(index.get_compressed(tokens_indexed))
 
-    index = {}
-    token_score = {}
+    index.reset()
+
     pages_done = 0
     dump_num += 1
 
@@ -205,3 +178,7 @@ while True:
         line = "info-end}}\n"
 
     parser.feed(line)
+
+print(len(tokens_encountered))
+print(len(tokens_indexed))
+

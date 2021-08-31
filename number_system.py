@@ -131,3 +131,29 @@ char_to_dec = {
     ",": 62,  # 111110
     ";": 63,  # 111111
 }
+
+
+class NumberSystem:
+    def __init__(self):
+        self._base = 64
+        # encoding & decoding is in reverse order, i.e., least significant byte first
+        # Example: A1 = 1 * val(A) + base * val(1)
+
+    def encode(self, num):
+        ans = []
+
+        while num:
+            ans.append(dec_to_char[num % self._base])
+            num //= self._base
+
+        return "".join(ans)
+
+    def decode(self, num):
+        ans = 0
+        p = 1
+
+        for i in num:
+            ans += char_to_dec[i] * p
+            p *= self._base
+
+        return ans
