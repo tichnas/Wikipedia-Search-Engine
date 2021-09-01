@@ -13,7 +13,7 @@ def tokenize(data):
     data = strip_accents(data)
 
     to_keep = {
-        "infobox",
+        "{{infobox",
         "info-end}}",
         "[[category:",
         "]]",
@@ -21,10 +21,12 @@ def tokenize(data):
         "==references==",
         "==link or reference end==",
         "<ref",
-        "</ref>",
+        "/ref>",
+        "&lt;ref",
+        "/ref&gt;",
     }
     escaped_to_keep = [
-        "infobox",
+        "\{\{infobox",
         "info-end\}\}",
         "\[\[category:",
         "\]\]",
@@ -32,7 +34,9 @@ def tokenize(data):
         "==references==",
         "==link or reference end==",
         "<ref",
-        "<\/ref>",
+        "\/ref>",
+        "&lt;ref",
+        "\/ref&gt;",
     ]
 
     left = re.split("(" + ")|(".join(escaped_to_keep) + ")", data)
@@ -61,14 +65,16 @@ def clean(data):
 
     data = re.sub("ref=", " ", data)
     data = re.sub("referee=", " ", data)
+    data = re.sub("<ref.*?\/>", " ", data)
+    data = re.sub("&lt;ref.*?\/&gt;", " ", data)
 
     data = re.sub("colspan=[^ ]*", " ", data)
     data = re.sub("rowspan=[^ ]*", " ", data)
 
     data = re.sub("\{\{reflist\}\}", " ", data)
 
-    data = re.sub("\{\{in lang.*\}\}", " ", data)
-    data = re.sub("language=.*\}\}", " ", data)
+    data = re.sub("\{\{in lang.*?\}\}", " ", data)
+    data = re.sub("language=.*?\}\}", " ", data)
 
     data = re.sub("url=", " ", data)
 
@@ -87,10 +93,10 @@ def clean(data):
     data = re.sub("\{\{defaultsort:", " ", data)
 
     # remove css
-    data = re.sub('style=".*"', " ", data)
+    data = re.sub('style=".*?"', " ", data)
 
     # remove everything like |something=
-    data = re.sub("\|.{0,50}=", " ", data)
+    data = re.sub("\|.{0,50}?=", " ", data)
 
     data = re.sub("[0-9]*px", " ", data)
 

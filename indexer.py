@@ -1,5 +1,5 @@
 import xml.sax
-import pickle
+import time
 
 from constants import DATA_FILE, PAGES_IN_FILE, WEIGHTAGE
 from stop_words import stop_words
@@ -7,6 +7,8 @@ from stemmed_stop_words import stemmed_stop_words
 from stemmer import Stemmer
 from index import Index
 from helper import tokenize, clean
+
+start_time = time.time()
 
 
 page_num = 0
@@ -21,7 +23,7 @@ benchmark_score = 0
 for i in WEIGHTAGE:
     benchmark_score += i
 
-index = Index(benchmark_score / 4)
+index = Index(benchmark_score / 5)
 stemmer = Stemmer()
 
 
@@ -77,11 +79,11 @@ def index_page():
     is_ref = False
 
     for token in text_tokens:
-        if token == "<ref":
+        if token == "<ref" or token == "&lt;ref":
             is_ref = True
-        elif token == "</ref>":
+        elif token == "/ref>" or token == "/ref&gt;":
             is_ref = False
-        elif token == "infobox" and not is_special:
+        elif token == "{{infobox" and not is_special:
             is_infobox = True
         elif token == "[[category:" and not is_special:
             is_category = True
@@ -174,11 +176,15 @@ while True:
     if len(line) == 1:
         line = "==link or reference end==" + line
 
-    if line == "}}\n":
-        line = "info-end}}\n"
+    if line[0:2] == "}}" or line[0:3] == "|}}":
+        line = "info-end}} " + line
 
     parser.feed(line)
 
 print(len(tokens_encountered))
 print(len(tokens_indexed))
+
+end_time = time.time()
+
+print("Time taken:", str(end_time - start_time)[0:5], "seconds")
 
