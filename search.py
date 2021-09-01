@@ -1,14 +1,13 @@
 import re
-import pickle
+import json
 
 from stemmer import Stemmer
-from number_system import char_to_dec
-from stop_words import stop_words
-from stemmed_stop_words import stemmed_stop_words
+from index import Index
 
 stemmer = Stemmer()
+index = Index()
 
-index = pickle.load(open("index0", "rb"))
+index.load(open("index0", "r"))
 
 query = "t:World Cup i:2018 c:Football"
 
@@ -20,26 +19,21 @@ for token in tokens:
     if not token:
         continue
 
+    result[token] = {}
+
     stemmed_token = stemmer.stem(token.lower())
 
-    field_names = ["title", "body", "infobox", "categories", "references", "links"]
-    field_docs = [[], [], [], [], [], []]
+    search_result = index.search(stemmed_token)
 
-    for doc in index[stemmed_token]:
-        doc_id = doc[0]
-        existence = char_to_dec[doc[1][-1]]
+    field_names = ["title", "body", "infobox", "categories", "links", "references"]
 
-        for type in range(6):
-            if existence & (1 << type):
-                if len(field_docs[type]) < 10:
-                    field_docs[type].append(str(doc_id) + ":" + doc[1][:-1])
+    for name in field_names:
+        result[token][name] = []
 
-    result[token] = {}
-    for type in range(6):
-        result[token][field_names[type]] = field_docs[type]
+    for res in search_result:
+        for i in range(6):
+            if res[2][i]:
+                result[token][field_names[i]].append(res[0])
 
-for word in result:
-    print("=====", word, "=====")
-    for type in result[word]:
-        print(type, "->", result[word][type])
-    print()
+
+print(json.dumps(result, indent=4, sort_keys=True))

@@ -146,13 +146,13 @@ def index_tokens(type, tokens, check_stop_words=True):
 
 
 def dump():
-    global index, pages_done, dump_num, token_score
+    global index, pages_done, dump_num
 
     print()
     print(dump_num)
     print()
 
-    index_file = open("index_txt" + str(dump_num), "w")
+    index_file = open("index" + str(dump_num), "w")
 
     index_file.write(index.get_compressed(tokens_indexed))
 

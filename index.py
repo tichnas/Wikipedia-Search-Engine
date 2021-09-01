@@ -27,14 +27,15 @@ from number_system import NumberSystem
 
 
 class Index:
-    def __init__(self, benchmark_score):
+    def __init__(self, benchmark_score=0):
         self._index = {}
+        self._compressed_index = {}
         self._token_score = {}
         self._benchmark_score = benchmark_score
         self._number_system = NumberSystem()
 
     def reset(self):
-        self._index = []
+        self._index = {}
         self._token_score = {}
 
     def add(self, token, page, type):
@@ -71,6 +72,24 @@ class Index:
 
         output[-1] = "\n"
 
+    def _decompress_token(self, token):
+        if token not in self._compressed_index:
+            return []
+
+        self._index[token] = []
+        data = self._compressed_index[token].split(" ")
+
+        for i in range(1, len(data), 2):
+            doc_id = self._number_system.decode(data[i])
+            score = self._number_system.decode(data[i + 1][:-1])
+            score_type = self._number_system.decode(data[i + 1][-1])
+
+            existence = []
+            for p in range(6):
+                existence.append(1 if score_type & (1 << p) else 0)
+
+            self._index[token].append([doc_id, score, existence])
+
     def get_compressed(self, tokens_indexed):
         output = []
 
@@ -80,3 +99,27 @@ class Index:
                 self._compress_token(token, output)
 
         return "".join(output)
+
+    def load(self, file_obj):
+        while True:
+            line = file_obj.readline()
+
+            if not line:
+                break
+
+            token = []
+            for i in line:
+                if i == " ":
+                    break
+                token.append(i)
+
+            self._compressed_index["".join(token)] = line[:-1]
+
+    def search(self, token):
+        if token not in self._compressed_index:
+            return []
+
+        if token not in self._index:
+            self._decompress_token(token)
+
+        return self._index[token]
