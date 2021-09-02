@@ -1,15 +1,17 @@
-import re
-import json
+import sys, os, re, json
 
 from stemmer import Stemmer
 from index import Index
 
+INDEX_FILE = os.path.join(sys.argv[1], "index")
+QUERY = sys.argv[2]
+
 stemmer = Stemmer()
 index = Index()
 
-index.load(open("index0", "r"))
+index.load(open(INDEX_FILE, "r"))
 
-query = "t:World Cup i:2018 c:Football"
+query = QUERY
 
 tokens = re.split(" |t:|i:|c:", query)
 

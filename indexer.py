@@ -1,7 +1,7 @@
 import xml.sax
-import time
+import sys, os, time
 
-from constants import DATA_FILE, PAGES_IN_FILE, WEIGHTAGE
+from constants import PAGES_IN_FILE, WEIGHTAGE
 from stop_words import stop_words
 from stemmed_stop_words import stemmed_stop_words
 from stemmer import Stemmer
@@ -10,6 +10,9 @@ from helper import tokenize, clean
 
 start_time = time.time()
 
+DATA_FILE = sys.argv[1]
+INDEX_FILE = os.path.join(sys.argv[2], "index")
+STAT_FILE = sys.argv[3]
 
 page_num = 0
 pages_done = 0
@@ -42,6 +45,9 @@ class XMLHandler(xml.sax.ContentHandler):
                 dump()
 
             page_num += 1
+
+            # if page_num % 2000 == 0:
+            #     print(page_num)
 
     def endElement(self, name):
         global page_num, pages_done, title, text
@@ -148,11 +154,11 @@ def index_tokens(type, tokens, check_stop_words=True):
 def dump():
     global index, pages_done, dump_num
 
-    print()
-    print(dump_num)
-    print()
+    # print()
+    # print(dump_num)
+    # print()
 
-    index_file = open("index" + str(dump_num), "w")
+    index_file = open(INDEX_FILE, "w")
 
     index_file.write(index.get_compressed(tokens_indexed))
 
@@ -181,10 +187,9 @@ while True:
 
     parser.feed(line)
 
-print(len(tokens_encountered))
-print(len(tokens_indexed))
+stat_file = open(STAT_FILE, "w")
+stat_file.write(str(len(tokens_encountered)) + "\n" + str(len(tokens_indexed)) + "\n")
 
 end_time = time.time()
 
-print("Time taken:", str(end_time - start_time)[0:5], "seconds")
-
+# print("Time taken:", str(end_time - start_time)[0:5], "seconds")
