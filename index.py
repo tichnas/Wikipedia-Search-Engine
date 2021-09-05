@@ -90,15 +90,24 @@ class Index:
 
             self._index[token].append([doc_id, score, existence])
 
-    def get_compressed(self, tokens_indexed):
-        output = []
+    def get_compressed(self):
+        output = {}
 
         for token in self._index:
             if self._token_score[token] > self._benchmark_score:
-                tokens_indexed.add(token)
-                self._compress_token(token, output)
+                id = token[:2]
+                if not id.isalpha():
+                    id = "other"
 
-        return "".join(output)
+                if id not in output:
+                    output[id] = []
+
+                self._compress_token(token, output[id])
+
+        for id in output:
+            output[id] = "".join(output[id])
+
+        return output
 
     def load(self, file_obj):
         while True:
@@ -112,8 +121,47 @@ class Index:
                 if i == " ":
                     break
                 token.append(i)
+            token = "".join(token)
 
-            self._compressed_index["".join(token)] = line[:-1]
+            self._compressed_index[token] = line[:-1]
+
+    def load_merge_write(self, file_obj):
+        # Doesn't change/use current state
+        # Assumes that file_obj is both read-write
+
+        file_obj.seek(0)
+        index = {}
+
+        while True:
+            line = file_obj.readline()
+
+            if not line:
+                break
+
+            pos = 0
+
+            token = []
+            for i in line:
+                if i == " ":
+                    break
+                pos += 1
+                token.append(i)
+            token = "".join(token)
+
+            if token not in index:
+                index[token] = [token]
+
+            index[token].append(line[pos:-1])
+
+        output = []
+
+        for token in index:
+            output.append("".join(index[token]))
+            output.append("\n")
+
+        file_obj.truncate(0)
+        file_obj.seek(0)
+        file_obj.write("".join(output))
 
     def search(self, token):
         if token not in self._compressed_index:

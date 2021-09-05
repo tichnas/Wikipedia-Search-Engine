@@ -1,3 +1,6 @@
 __pycache__/
 .vscode/
 venv/
+*.pyc
+index_data/*
+!index_data/.keep

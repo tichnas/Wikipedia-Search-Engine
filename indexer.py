@@ -1,5 +1,5 @@
 import xml.sax
-import sys, os, time
+import sys, os, time, resource
 
 from constants import PAGES_IN_FILE, WEIGHTAGE
 from stop_words import stop_words
@@ -8,19 +8,15 @@ from stemmer import Stemmer
 from index import Index
 from helper import tokenize, clean
 
-start_time = time.time()
 
-DATA_FILE = sys.argv[1]
-INDEX_FILE = os.path.join(sys.argv[2], "index")
-STAT_FILE = sys.argv[3]
+DATA_FILE = "data_example"
+INDEX_FOLDER = "index_data"
 
 page_num = 0
 pages_done = 0
-dump_num = 0
 title = ""
 text = ""
-tokens_encountered = set()
-tokens_indexed = set()
+index_files = {}
 
 benchmark_score = 0
 for i in WEIGHTAGE:
@@ -128,9 +124,6 @@ def index_page():
 
 def index_tokens(type, tokens, check_stop_words=True):
     for token in tokens:
-        if token:
-            tokens_encountered.add(token)
-
         if not token or len(token) <= 1:
             continue
 
@@ -145,6 +138,9 @@ def index_tokens(type, tokens, check_stop_words=True):
 
         token = stemmer.stem(token)
 
+        if len(token) <= 1:
+            continue
+
         if check_stop_words and token in stemmed_stop_words:
             continue
 
@@ -152,44 +148,69 @@ def index_tokens(type, tokens, check_stop_words=True):
 
 
 def dump():
-    global index, pages_done, dump_num
+    global index, pages_done
 
-    # print()
-    # print(dump_num)
-    # print()
+    data = index.get_compressed()
 
-    index_file = open(INDEX_FILE, "w")
-
-    index_file.write(index.get_compressed(tokens_indexed))
+    for id in data:
+        index_files[id].write(data[id])
 
     index.reset()
 
     pages_done = 0
-    dump_num += 1
 
 
-parser = xml.sax.make_parser()
-parser.setContentHandler(XMLHandler())
+def create_index_files():
+    letters = [chr(i) for i in range(ord("a"), ord("z") + 1)]
 
-data_file = open(DATA_FILE, "r")
+    for i in letters:
+        for j in letters:
+            path = os.path.join(INDEX_FOLDER, "index_" + (i + j))
+            file = open(path, "w+")
+            index_files[i + j] = file
 
-while True:
-    line = data_file.readline()
+    path = os.path.join(INDEX_FOLDER, "index_.other")
+    file = open(path, "w+")
+    index_files["other"] = file
 
-    if not line:
-        break
 
-    if len(line) == 1:
-        line = "==link or reference end==" + line
+def merge_tokens_index():
+    for id in index_files:
+        index.load_merge_write(index_files[id])
 
-    if line[0:2] == "}}" or line[0:3] == "|}}":
-        line = "info-end}} " + line
 
-    parser.feed(line)
+def parse():
+    parser = xml.sax.make_parser()
+    parser.setContentHandler(XMLHandler())
 
-stat_file = open(STAT_FILE, "w")
-stat_file.write(str(len(tokens_encountered)) + "\n" + str(len(tokens_indexed)) + "\n")
+    data_file = open(DATA_FILE, "r")
+
+    while True:
+        line = data_file.readline()
+
+        if not line:
+            break
+
+        if len(line) == 1:
+            line = "==link or reference end==" + line
+
+        if line[0:2] == "}}" or line[0:3] == "|}}":
+            line = "info-end}} " + line
+
+        parser.feed(line)
+
+
+start_time = time.time()
+
+create_index_files()
+
+parse()
+
+merge_tokens_index()
 
 end_time = time.time()
 
-# print("Time taken:", str(end_time - start_time)[0:5], "seconds")
+print("Time taken:", str(end_time - start_time)[0:5], "seconds")
+print(
+    "Peak RAM Usage:", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1000, "MB"
+)
