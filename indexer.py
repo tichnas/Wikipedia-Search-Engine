@@ -7,6 +7,7 @@ from stemmed_stop_words import stemmed_stop_words
 from stemmer import Stemmer
 from index import Index
 from helper import tokenize, clean
+from file_mappings import get_token_index_file
 
 
 DATA_FILE = "data_example"
@@ -156,25 +157,14 @@ def dump():
     data = index.get_compressed()
 
     for id in data:
+        if id not in index_files:
+            file_path = os.path.join(INDEX_FOLDER, get_token_index_file(id))
+            index_files[id] = open(file_path, "w+")
         index_files[id].write(data[id])
 
     index.reset()
 
     pages_done = 0
-
-
-def create_index_files():
-    letters = [chr(i) for i in range(ord("a"), ord("z") + 1)]
-
-    for i in letters:
-        for j in letters:
-            path = os.path.join(INDEX_FOLDER, "index_" + (i + j))
-            file = open(path, "w+")
-            index_files[i + j] = file
-
-    path = os.path.join(INDEX_FOLDER, "index_.other")
-    file = open(path, "w+")
-    index_files["other"] = file
 
 
 def merge_tokens_index():
@@ -215,7 +205,7 @@ def check_pause():
         pause = int(pause_file.readline())
 
         if pause:
-            print('Sleeping...')
+            print("Sleeping...")
             time.sleep(60)
         else:
             break
@@ -226,7 +216,6 @@ start_time = time.time()
 if ALLOW_PAUSE:
     setup_pause()
 
-create_index_files()
 
 parse()
 

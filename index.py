@@ -5,7 +5,7 @@
 ##   Index Format:
 ##
 ##   token -> [
-##      [page num, score, [inTitle, inBody, inInfobox, inCategory, inLink, inReference]],
+##      [page num change from previous, score, [inTitle, inBody, inInfobox, inCategory, inLink, inReference]],
 ##      ...
 ##      ]
 ##
@@ -24,6 +24,7 @@
 
 from constants import WEIGHTAGE
 from number_system import NumberSystem
+from file_mappings import get_token_id
 
 
 class Index:
@@ -56,7 +57,13 @@ class Index:
         output.append(token)
         output.append(" ")
 
+        prefix_sum = 0
+
         for doc in self._index[token]:
+            # store only the change from last doc id
+            doc[0] -= prefix_sum
+            prefix_sum += doc[0]
+
             output.append(self._number_system.encode(doc[0]))
             output.append(" ")
             output.append(self._number_system.encode(doc[1]))
@@ -95,10 +102,7 @@ class Index:
 
         for token in self._index:
             if self._token_score[token] > self._benchmark_score:
-                id = token[:2]
-                if not id.isalpha():
-                    id = "other"
-
+                id = get_token_id(token)
                 if id not in output:
                     output[id] = []
 
