@@ -1,7 +1,7 @@
 import xml.sax
 import sys, os, time, resource
 
-from constants import PAGES_IN_FILE, WEIGHTAGE
+from constants import PAGES_IN_FILE, WEIGHTAGE, ALLOW_PAUSE, PAUSE_FILE
 from stop_words import stop_words
 from stemmed_stop_words import stemmed_stop_words
 from stemmer import Stemmer
@@ -41,6 +41,9 @@ class XMLHandler(xml.sax.ContentHandler):
                 dump()
 
             page_num += 1
+
+            if ALLOW_PAUSE and page_num % 2000 == 0:
+                check_pause()
 
             # if page_num % 2000 == 0:
             #     print(page_num)
@@ -200,7 +203,28 @@ def parse():
         parser.feed(line)
 
 
+def setup_pause():
+    global pause_file
+    pause_file = open(PAUSE_FILE, "w+")
+    pause_file.write("0")
+
+
+def check_pause():
+    while True:
+        pause_file.seek(0)
+        pause = int(pause_file.readline())
+
+        if pause:
+            print('Sleeping...')
+            time.sleep(60)
+        else:
+            break
+
+
 start_time = time.time()
+
+if ALLOW_PAUSE:
+    setup_pause()
 
 create_index_files()
 
