@@ -1,3 +1,5 @@
+from constants import PAGES_IN_META_FILE
+
 double_gap_4 = {"b", "g", "h", "j", "k", "o", "v", "w"}
 single = {"q", "x", "y", "z"}
 double_gap_3 = {"t"}
@@ -29,3 +31,11 @@ def get_token_id(token):
 
 
 get_token_index_file = lambda token_id: "index_" + token_id
+
+get_doc_terms_count_file = lambda last_page_num: "count_" + str(
+    (last_page_num - 1) // PAGES_IN_META_FILE
+)
+
+get_doc_title_file = lambda last_page_num: "title_" + str(
+    (last_page_num - 1) // PAGES_IN_META_FILE
+)

@@ -1,13 +1,24 @@
 import xml.sax
 import sys, os, time, resource
 
-from constants import PAGES_IN_FILE, WEIGHTAGE, ALLOW_PAUSE, PAUSE_FILE
+from constants import (
+    PAGES_IN_META_FILE,
+    PAGES_IN_RAM,
+    WEIGHTAGE,
+    ALLOW_PAUSE,
+    PAUSE_FILE,
+)
 from stop_words import stop_words
 from stemmed_stop_words import stemmed_stop_words
 from stemmer import Stemmer
 from index import Index
 from helper import tokenize, clean
-from file_mappings import get_token_index_file
+from file_mappings import (
+    get_token_index_file,
+    get_doc_title_file,
+    get_doc_terms_count_file,
+)
+from number_system import NumberSystem
 
 
 DATA_FILE = "data_example"
@@ -18,6 +29,8 @@ pages_done = 0
 title = ""
 text = ""
 index_files = {}
+page_titles = []
+page_token_count = []
 
 benchmark_score = 0
 for i in WEIGHTAGE:
@@ -25,6 +38,7 @@ for i in WEIGHTAGE:
 
 index = Index(benchmark_score / 5)
 stemmer = Stemmer()
+number_system = NumberSystem()
 
 
 class XMLHandler(xml.sax.ContentHandler):
@@ -38,8 +52,11 @@ class XMLHandler(xml.sax.ContentHandler):
         self.data = []
 
         if name == "page":
-            if pages_done == PAGES_IN_FILE:
+            if page_num and page_num % PAGES_IN_RAM == 0:
                 dump()
+
+            if page_num and page_num % PAGES_IN_META_FILE == 0:
+                dump_meta()
 
             page_num += 1
 
@@ -50,15 +67,17 @@ class XMLHandler(xml.sax.ContentHandler):
             #     print(page_num)
 
     def endElement(self, name):
-        global page_num, pages_done, title, text
+        global page_num, title, text
 
         if name == "mediawiki":
             dump()
+            if page_num % PAGES_IN_META_FILE:
+                dump_meta()
         elif name == "page":
-            pages_done += 1
             index_page()
         elif name == "title":
             title = "".join(self.data)
+            page_titles.append(title)
         elif name == "text":
             text = clean("".join(self.data))
 
@@ -67,6 +86,8 @@ class XMLHandler(xml.sax.ContentHandler):
 
 
 def index_page():
+    page_token_count.append(0)
+
     index_tokens(0, tokenize(title), False)
 
     text_tokens = tokenize(text)
@@ -148,23 +169,44 @@ def index_tokens(type, tokens, check_stop_words=True):
         if check_stop_words and token in stemmed_stop_words:
             continue
 
+        page_token_count[-1] += WEIGHTAGE[type]
         index.add(token, page_num, type)
 
 
+get_file_path = lambda path: os.path.join(INDEX_FOLDER, path)
+
+
 def dump():
-    global index, pages_done
+    global index
 
     data = index.get_compressed()
 
     for id in data:
         if id not in index_files:
-            file_path = os.path.join(INDEX_FOLDER, get_token_index_file(id))
+            file_path = get_file_path(get_token_index_file(id))
             index_files[id] = open(file_path, "w+")
         index_files[id].write(data[id])
 
     index.reset()
 
-    pages_done = 0
+
+def dump_meta():
+    global page_num, page_titles, page_token_count
+
+    page_titles.append("")
+    title_string = "\n".join(page_titles)
+    page_titles = []
+
+    token_count = [number_system.encode(count) for count in page_token_count]
+    token_count.append("")
+    token_count_string = "\n".join(token_count)
+    page_token_count = []
+
+    title_file = open(get_file_path(get_doc_title_file(page_num)), "w")
+    token_count_file = open(get_file_path(get_doc_terms_count_file(page_num)), "w")
+
+    title_file.write(title_string)
+    token_count_file.write(token_count_string)
 
 
 def merge_tokens_index():
