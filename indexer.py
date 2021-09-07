@@ -7,6 +7,8 @@ from constants import (
     WEIGHTAGE,
     ALLOW_PAUSE,
     PAUSE_FILE,
+    MAX_FILE_DESCRIPTORS,
+    INDEX_FILE_SIZE,
 )
 from stop_words import stop_words
 from stemmed_stop_words import stemmed_stop_words
@@ -14,9 +16,11 @@ from stemmer import Stemmer
 from index import Index
 from helper import tokenize, clean
 from file_mappings import (
-    get_token_index_file,
+    get_token_intermediate_index_file,
     get_doc_title_file,
     get_doc_terms_count_file,
+    is_token_intermediate_index_file,
+    get_token_index_file,
 )
 from number_system import NumberSystem
 
@@ -25,10 +29,8 @@ DATA_FILE = "data_example"
 INDEX_FOLDER = "index_data"
 
 page_num = 0
-pages_done = 0
 title = ""
 text = ""
-index_files = {}
 page_titles = []
 page_token_count = []
 
@@ -179,15 +181,24 @@ get_file_path = lambda path: os.path.join(INDEX_FOLDER, path)
 def dump():
     global index
 
+    index_files = {}
     data = index.get_compressed()
 
     for id in data:
         if id not in index_files:
-            file_path = get_file_path(get_token_index_file(id))
-            index_files[id] = open(file_path, "w+")
+            if len(index_files) == MAX_FILE_DESCRIPTORS:
+                for file in index_files.values():
+                    file.close()
+                index_files = {}
+
+            file_path = get_file_path(get_token_intermediate_index_file(id))
+            index_files[id] = open(file_path, "a")
+
         index_files[id].write(data[id])
 
     index.reset()
+    for file in index_files.values():
+        file.close()
 
 
 def dump_meta():
@@ -210,8 +221,46 @@ def dump_meta():
 
 
 def merge_tokens_index():
-    for id in index_files:
-        index.load_merge_write(index_files[id])
+    for filename in os.listdir(INDEX_FOLDER):
+        if is_token_intermediate_index_file(filename):
+            index.load_merge_write(get_file_path(filename))
+
+
+def break_index_files():
+    size_done = 0
+    write_file = None
+
+    for filename in sorted(os.listdir(INDEX_FOLDER)):
+        if not is_token_intermediate_index_file(filename):
+            continue
+
+        file = open(get_file_path(filename), "r")
+
+        while True:
+            line = file.readline()
+
+            if not line:
+                break
+
+            if not write_file or size_done + len(line) > INDEX_FILE_SIZE * 1024 * 1024:
+                token = []
+                for i in line:
+                    if i == " ":
+                        break
+                    token.append(i)
+                token = "".join(token)
+
+                if write_file:
+                    write_file.close()
+
+                write_file = open(get_file_path(get_token_index_file(token)), "w")
+                size_done = 0
+
+            write_file.write(line)
+            size_done += len(line)
+
+        file.close()
+        os.remove(get_file_path(filename))
 
 
 def parse():
@@ -253,15 +302,23 @@ def check_pause():
             break
 
 
+def empty_index_dir():
+    for file in os.listdir(INDEX_FOLDER):
+        file_path = get_file_path(file)
+        os.remove(file_path)
+
+
 start_time = time.time()
 
 if ALLOW_PAUSE:
     setup_pause()
 
+empty_index_dir()
 
 parse()
 
 merge_tokens_index()
+break_index_files()
 
 end_time = time.time()
 

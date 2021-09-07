@@ -129,9 +129,11 @@ class Index:
 
             self._compressed_index[token] = line[:-1]
 
-    def load_merge_write(self, file_obj):
+    def load_merge_write(self, file_path):
         # Doesn't change/use current state
-        # Assumes that file_obj is both read-write
+        # Sorts by token
+
+        file_obj = open(file_path, "a+")
 
         file_obj.seek(0)
         index = {}
@@ -159,13 +161,15 @@ class Index:
 
         output = []
 
-        for token in index:
+        for token in sorted(index.keys()):
             output.append("".join(index[token]))
             output.append("\n")
 
         file_obj.truncate(0)
         file_obj.seek(0)
         file_obj.write("".join(output))
+
+        file_obj.close()
 
     def search(self, token):
         if token not in self._compressed_index:
