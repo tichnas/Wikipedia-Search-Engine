@@ -1,41 +1,37 @@
-import sys, os, re, json
+import sys, os, re, bisect
 
 from stemmer import Stemmer
 from index import Index
+from file_mappings import is_token_index_file, get_token_index_file
 
-INDEX_FILE = os.path.join(sys.argv[1], "index")
-QUERY = sys.argv[2]
+
+INDEX_FOLDER = "index_data"
+QUERY = "football world cup"
+
+get_file_path = lambda filename: os.path.join(INDEX_FOLDER, filename)
 
 stemmer = Stemmer()
 index = Index()
 
-index.load(open(INDEX_FILE, "r"))
+index_files = sorted(
+    [filename for filename in os.listdir(INDEX_FOLDER) if is_token_index_file(filename)]
+)
 
-query = QUERY
 
-tokens = re.split(" |t:|i:|c:", query)
-
-result = {}
+tokens = re.split(" |t:|i:|c:", QUERY)
 
 for token in tokens:
-    if not token:
-        continue
+    token = stemmer.stem(token.lower())
 
-    result[token] = {}
+    file_index = bisect.bisect(index_files, get_token_index_file(token)) - 1
 
-    stemmed_token = stemmer.stem(token.lower())
+    docs = (
+        []
+        if file_index == -1
+        else index.search(token, get_file_path(index_files[file_index]))
+    )
 
-    search_result = index.search(stemmed_token)
-
-    field_names = ["title", "body", "infobox", "categories", "links", "references"]
-
-    for name in field_names:
-        result[token][name] = []
-
-    for res in search_result:
-        for i in range(6):
-            if res[2][i]:
-                result[token][field_names[i]].append(res[0])
-
-
-print(json.dumps(result, indent=4, sort_keys=True))
+    print(token)
+    for doc in docs:
+        print(doc)
+    print()

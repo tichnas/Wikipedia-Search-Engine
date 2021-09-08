@@ -30,7 +30,6 @@ from file_mappings import get_token_id
 class Index:
     def __init__(self, benchmark_score=0):
         self._index = {}
-        self._compressed_index = {}
         self._token_score = {}
         self._benchmark_score = benchmark_score
         self._number_system = NumberSystem()
@@ -79,15 +78,15 @@ class Index:
 
         output[-1] = "\n"
 
-    def _decompress_token(self, token):
-        if token not in self._compressed_index:
-            return []
+    def _decompress_token(self, data):
+        data = data.split(" ")
 
-        self._index[token] = []
-        data = self._compressed_index[token].split(" ")
+        result = []
+        last_doc_id = 0
 
         for i in range(1, len(data), 2):
-            doc_id = self._number_system.decode(data[i])
+            doc_id = self._number_system.decode(data[i]) + last_doc_id
+            last_doc_id = doc_id
             score = self._number_system.decode(data[i + 1][:-1])
             score_type = self._number_system.decode(data[i + 1][-1])
 
@@ -95,7 +94,9 @@ class Index:
             for p in range(6):
                 existence.append(1 if score_type & (1 << p) else 0)
 
-            self._index[token].append([doc_id, score, existence])
+            result.append([doc_id, score, existence])
+
+        return result
 
     def get_compressed(self):
         output = {}
@@ -112,22 +113,6 @@ class Index:
             output[id] = "".join(output[id])
 
         return output
-
-    def load(self, file_obj):
-        while True:
-            line = file_obj.readline()
-
-            if not line:
-                break
-
-            token = []
-            for i in line:
-                if i == " ":
-                    break
-                token.append(i)
-            token = "".join(token)
-
-            self._compressed_index[token] = line[:-1]
 
     def load_merge_write(self, file_path):
         # Doesn't change/use current state
@@ -171,11 +156,27 @@ class Index:
 
         file_obj.close()
 
-    def search(self, token):
-        if token not in self._compressed_index:
-            return []
+    def search(self, token, file_path):
+        file = open(file_path, "r")
+        data = token
 
-        if token not in self._index:
-            self._decompress_token(token)
+        while True:
+            line = file.readline()
 
-        return self._index[token]
+            if not line:
+                break
+
+            cur_token = []
+            for i in line:
+                if i == " ":
+                    break
+                cur_token.append(i)
+            cur_token = "".join(cur_token)
+
+            if cur_token == token:
+                data = line[:-1]
+                break
+        
+        file.close()
+
+        return self._decompress_token(data)

@@ -175,7 +175,7 @@ def index_tokens(type, tokens, check_stop_words=True):
         index.add(token, page_num, type)
 
 
-get_file_path = lambda path: os.path.join(INDEX_FOLDER, path)
+get_file_path = lambda filename: os.path.join(INDEX_FOLDER, filename)
 
 
 def dump():
