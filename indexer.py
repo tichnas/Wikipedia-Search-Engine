@@ -2,8 +2,9 @@ import xml.sax
 import sys, os, time, resource
 
 from constants import (
-    PAGES_IN_META_FILE,
     PAGES_IN_RAM,
+    PAGES_IN_TITLE_FILE,
+    PAGES_IN_TOKEN_COUNT_FILE,
     WEIGHTAGE,
     ALLOW_PAUSE,
     PAUSE_FILE,
@@ -54,11 +55,13 @@ class XMLHandler(xml.sax.ContentHandler):
         self.data = []
 
         if name == "page":
-            if page_num and page_num % PAGES_IN_RAM == 0:
-                dump()
-
-            if page_num and page_num % PAGES_IN_META_FILE == 0:
-                dump_meta()
+            if page_num:
+                if page_num % PAGES_IN_RAM == 0:
+                    dump()
+                if page_num % PAGES_IN_TITLE_FILE == 0:
+                    dump_titles()
+                if page_num % PAGES_IN_TOKEN_COUNT_FILE == 0:
+                    dump_token_counts()
 
             page_num += 1
 
@@ -72,9 +75,12 @@ class XMLHandler(xml.sax.ContentHandler):
         global page_num, title, text
 
         if name == "mediawiki":
-            dump()
-            if page_num % PAGES_IN_META_FILE:
-                dump_meta()
+            if page_num % PAGES_IN_RAM:
+                dump()
+            if page_num % PAGES_IN_TITLE_FILE:
+                dump_titles()
+            if page_num % PAGES_IN_TOKEN_COUNT_FILE:
+                dump_token_counts()
         elif name == "page":
             index_page()
         elif name == "title":
@@ -201,22 +207,28 @@ def dump():
         file.close()
 
 
-def dump_meta():
-    global page_num, page_titles, page_token_count
+def dump_titles():
+    global page_num, page_titles
 
     page_titles.append("")
     title_string = "\n".join(page_titles)
     page_titles = []
+
+    title_file = open(get_file_path(get_doc_title_file(page_num)), "w")
+
+    title_file.write(title_string)
+
+
+def dump_token_counts():
+    global page_num, page_token_count
 
     token_count = [number_system.encode(count) for count in page_token_count]
     token_count.append("")
     token_count_string = "\n".join(token_count)
     page_token_count = []
 
-    title_file = open(get_file_path(get_doc_title_file(page_num)), "w")
     token_count_file = open(get_file_path(get_doc_terms_count_file(page_num)), "w")
 
-    title_file.write(title_string)
     token_count_file.write(token_count_string)
 
 
