@@ -43,6 +43,8 @@ index = Index(benchmark_score / 5)
 stemmer = Stemmer()
 number_system = NumberSystem()
 
+titles_to_skip = ["Wikipedia:", "File:", "Category:", "Template:", "Portal:"]
+
 
 class XMLHandler(xml.sax.ContentHandler):
     def __init__(self):
@@ -95,6 +97,10 @@ class XMLHandler(xml.sax.ContentHandler):
 
 def index_page():
     page_token_count.append(0)
+
+    for t in titles_to_skip:
+        if title.startswith(t):
+            return
 
     index_tokens(0, tokenize(title), False)
 

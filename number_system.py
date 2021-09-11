@@ -140,6 +140,9 @@ class NumberSystem:
         # Example: A1 = 1 * val(A) + base * val(1)
 
     def encode(self, num):
+        if num == 0:
+            return dec_to_char[0]
+
         ans = []
 
         while num:
