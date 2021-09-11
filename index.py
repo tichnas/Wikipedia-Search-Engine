@@ -56,13 +56,7 @@ class Index:
         output.append(token)
         output.append(" ")
 
-        prefix_sum = 0
-
         for doc in self._index[token]:
-            # store only the change from last doc id
-            doc[0] -= prefix_sum
-            prefix_sum += doc[0]
-
             output.append(self._number_system.encode(doc[0]))
             output.append(" ")
             output.append(self._number_system.encode(doc[1]))
@@ -133,21 +127,29 @@ class Index:
 
             token = []
             for i in line:
+                pos += 1
                 if i == " ":
                     break
-                pos += 1
                 token.append(i)
             token = "".join(token)
 
             if token not in index:
                 index[token] = [token]
 
-            index[token].append(line[pos:-1])
+            index[token].extend(line[pos:-1].split(" "))
 
         output = []
 
         for token in sorted(index.keys()):
-            output.append("".join(index[token]))
+            prefix_sum = 0
+            for i in range(1, len(index[token]), 2):
+                num = self._number_system.decode(index[token][i])
+                num -= prefix_sum
+                prefix_sum += num
+
+                index[token][i] = self._number_system.encode(num)
+
+            output.append(" ".join(index[token]))
             output.append("\n")
 
         file_obj.truncate(0)
@@ -176,7 +178,7 @@ class Index:
             if cur_token == token:
                 data = line[:-1]
                 break
-        
+
         file.close()
 
         return self._decompress_token(data)
