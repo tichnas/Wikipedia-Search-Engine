@@ -4,7 +4,6 @@ import sys, os, time, resource
 from constants import (
     PAGES_IN_RAM,
     PAGES_IN_TITLE_FILE,
-    PAGES_IN_TOKEN_COUNT_FILE,
     WEIGHTAGE,
     ALLOW_PAUSE,
     PAUSE_FILE,
@@ -19,7 +18,6 @@ from helper import tokenize, clean
 from file_mappings import (
     get_token_intermediate_index_file,
     get_doc_title_file,
-    get_doc_terms_count_file,
     is_token_intermediate_index_file,
     get_token_index_file,
 )
@@ -33,13 +31,12 @@ page_num = 0
 title = ""
 text = ""
 page_titles = []
-page_token_count = []
 
 benchmark_score = 0
 for i in WEIGHTAGE:
     benchmark_score += i
 
-index = Index(benchmark_score / 5)
+index = Index(benchmark_score / 6)
 stemmer = Stemmer()
 number_system = NumberSystem()
 
@@ -62,16 +59,14 @@ class XMLHandler(xml.sax.ContentHandler):
                     dump()
                 if page_num % PAGES_IN_TITLE_FILE == 0:
                     dump_titles()
-                if page_num % PAGES_IN_TOKEN_COUNT_FILE == 0:
-                    dump_token_counts()
 
             page_num += 1
 
             if ALLOW_PAUSE and page_num % 2000 == 0:
                 check_pause()
 
-            # if page_num % 2000 == 0:
-            #     print(page_num)
+            if page_num % 2000 == 0:
+                print(page_num)
 
     def endElement(self, name):
         global page_num, title, text
@@ -81,8 +76,6 @@ class XMLHandler(xml.sax.ContentHandler):
                 dump()
             if page_num % PAGES_IN_TITLE_FILE:
                 dump_titles()
-            if page_num % PAGES_IN_TOKEN_COUNT_FILE:
-                dump_token_counts()
         elif name == "page":
             index_page()
         elif name == "title":
@@ -96,8 +89,6 @@ class XMLHandler(xml.sax.ContentHandler):
 
 
 def index_page():
-    page_token_count.append(0)
-
     for t in titles_to_skip:
         if title.startswith(t):
             return
@@ -183,7 +174,6 @@ def index_tokens(type, tokens, check_stop_words=True):
         if check_stop_words and token in stemmed_stop_words:
             continue
 
-        page_token_count[-1] += WEIGHTAGE[type]
         index.add(token, page_num, type)
 
 
@@ -225,19 +215,6 @@ def dump_titles():
     title_file.write(title_string)
 
 
-def dump_token_counts():
-    global page_num, page_token_count
-
-    token_count = [number_system.encode(count) for count in page_token_count]
-    token_count.append("")
-    token_count_string = "\n".join(token_count)
-    page_token_count = []
-
-    token_count_file = open(get_file_path(get_doc_terms_count_file(page_num)), "w")
-
-    token_count_file.write(token_count_string)
-
-
 def merge_tokens_index():
     for filename in os.listdir(INDEX_FOLDER):
         if is_token_intermediate_index_file(filename):
@@ -260,7 +237,10 @@ def break_index_files():
             if not line:
                 break
 
-            if not write_file or size_done + len(line) > INDEX_FILE_SIZE * 1024 * 1024:
+            if not write_file or (
+                size_done > 1024 * 1024
+                and size_done + len(line) > INDEX_FILE_SIZE * 1024 * 1024
+            ):
                 token = []
                 for i in line:
                     if i == " ":

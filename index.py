@@ -22,6 +22,7 @@
 ##
 ##################################
 
+import heapq
 from constants import WEIGHTAGE
 from number_system import NumberSystem
 from file_mappings import get_token_id
@@ -111,6 +112,7 @@ class Index:
     def load_merge_write(self, file_path):
         # Doesn't change/use current state
         # Sorts by token
+        # Keeps only top 1e5 (1 lakh) docs for each token
 
         file_obj = open(file_path, "a+")
 
@@ -141,15 +143,35 @@ class Index:
         output = []
 
         for token in sorted(index.keys()):
+            doc_data = []
+            for i in range(1, len(index[token]), 2):
+                doc_data.append(
+                    (
+                        self._number_system.decode(index[token][i + 1][:-1]),
+                        index[token][i],
+                    )
+                )
+
+            top_docs_list = heapq.nlargest(int(1e5), doc_data)
+            top_docs = set()
+            for doc in top_docs_list:
+                top_docs.add(doc[1])
+
+            top_index = [token]
+
             prefix_sum = 0
             for i in range(1, len(index[token]), 2):
+                if index[token][i] not in top_docs:
+                    continue
+
                 num = self._number_system.decode(index[token][i])
                 num -= prefix_sum
                 prefix_sum += num
 
-                index[token][i] = self._number_system.encode(num)
+                top_index.append(self._number_system.encode(num))
+                top_index.append(index[token][i + 1])
 
-            output.append(" ".join(index[token]))
+            output.append(" ".join(top_index))
             output.append("\n")
 
         file_obj.truncate(0)
