@@ -8,12 +8,15 @@ from file_mappings import (
     get_token_index_file,
     get_doc_title_file,
 )
-from constants import PAGES_IN_TITLE_FILE, TOTAL_PAGES
+from constants import (
+    PAGES_IN_TITLE_FILE,
+    SEARCH_RESULTS_FILE,
+    TOTAL_PAGES,
+    INDEX_FOLDER,
+)
 
-start_time = time.time()
 
-INDEX_FOLDER = "index_data"
-QUERY = "football world cup"
+QUERIES_FILE = sys.argv[1]
 
 get_file_path = lambda filename: os.path.join(INDEX_FOLDER, filename)
 
@@ -25,21 +28,27 @@ index_files = sorted(
     [filename for filename in os.listdir(INDEX_FOLDER) if is_token_index_file(filename)]
 )
 
-doc_term_counts = {}
 doc_scores = {}
 
-get_doc_title_time = 0
+
+field_symbols = {"t:": 0, "b:": 1, "i:": 2, "c:": 3, "l:": 4, "r:": 5}
 
 
 def tokenize(text):
-    return re.split("[^a-zA-Z0-9]+", text)
+    tokens = []
+
+    fields_separated = re.split("(t:|b:|i:|c:|l:|r:)", text)
+
+    for t in fields_separated:
+        if t in field_symbols:
+            tokens.append(t)
+        else:
+            tokens.extend(re.split("[^a-zA-Z0-9]+", t))
+
+    return tokens
 
 
 def get_doc_title(docid):
-    global get_doc_title_time
-
-    s = time.time()
-
     file = open(get_file_path(get_doc_title_file(docid)), "r")
 
     line = None
@@ -47,9 +56,6 @@ def get_doc_title(docid):
         line = file.readline()
 
     file.close()
-
-    e = time.time()
-    get_doc_title_time += e - s
 
     return line[:-1]
 
@@ -80,59 +86,67 @@ def get_top_results(count):
     return top_results
 
 
-tokens = tokenize(QUERY)
+def search(query, output_file):
+    global doc_scores
 
-index_search_time = 0
-score_assign_time = 0
+    doc_scores = {}
+    field_selected = -1
 
-tokens_time = []
+    start_time = time.time()
 
+    tokens = tokenize(query)
 
-for token in tokens:
-    ts = time.time()
+    for token in tokens:
+        if not token:
+            continue
 
-    token = stemmer.stem(token.lower())
+        if token in field_symbols:
+            field_selected = field_symbols[token]
+            continue
 
-    file_index = bisect.bisect(index_files, get_token_index_file(token)) - 1
+        token = stemmer.stem(token.lower())
 
-    print(token + " " + index_files[file_index])
+        file_index = bisect.bisect(index_files, get_token_index_file(token)) - 1
 
-    s = time.time()
+        docs = (
+            []
+            if file_index == -1
+            else index.search(token, get_file_path(index_files[file_index]))
+        )
 
-    docs = (
-        []
-        if file_index == -1
-        else index.search(token, get_file_path(index_files[file_index]))
+        if field_selected != -1:
+            docs = list(filter(lambda doc: doc[2][field_selected], docs))
+
+        assign_scores(docs)
+
+    top_10_results = get_top_results(10)
+
+    for doc in top_10_results:
+        output_file.write(str(doc) + ": " + get_doc_title(doc) + "\n")
+
+    if len(top_10_results) == 0:
+        output_file.write(
+            "Your search - " + query + " - did not match any documents.\n"
+        )
+        output_file.write("Suggestions: \n")
+        output_file.write("- Make sure that all words are spelled correctly.\n")
+        output_file.write("- Try different keywords.\n")
+        output_file.write("- Try more general keywords.\n")
+
+    end_time = time.time()
+
+    output_file.write(
+        "\nTime taken: " + str(end_time - start_time)[0:5] + " seconds\n\n"
     )
 
-    e = time.time()
-    index_search_time += e - s
 
-    s = time.time()
+output_file = open(SEARCH_RESULTS_FILE, "w")
+query_file = open(QUERIES_FILE, "r")
 
-    assign_scores(docs)
+while True:
+    line = query_file.readline()
 
-    e = time.time()
-    score_assign_time += e - s
+    if not line:
+        break
 
-    te = time.time()
-    tokens_time.append(str(te - ts)[0:5])
-
-
-top_start_time = time.time()
-
-top_10_results = get_top_results(10)
-
-for doc in top_10_results:
-    print(str(doc) + ":", get_doc_title(doc))
-
-
-end_time = time.time()
-
-print()
-print("Time taken:", str(end_time - start_time)[0:5], "seconds")
-print("Top 10 Time taken:", str(end_time - top_start_time)[0:5], "seconds")
-print("Title fetch time:", str(get_doc_title_time)[0:5], "seconds")
-print("Index search fetch time:", str(index_search_time)[0:5], "seconds")
-print("Score assign time:", str(score_assign_time)[0:5], "seconds")
-print("Tokens time:", tokens_time)
+    search(line[:-1], output_file)

@@ -24,7 +24,7 @@ from file_mappings import (
 from number_system import NumberSystem
 
 
-DATA_FILE = "data_example"
+DATA_FILE = "data_huge"
 INDEX_FOLDER = "index_data"
 
 page_num = 0
