@@ -9,14 +9,31 @@ Provide efficient search results on Wikipedia data of huge size.
 1. Ensure Python 3.8+ & `pip` is installed.
 2. Install all requirements (preferably inside virtual environment): `pip3 install -r requirements.txt`
 
-## Running
+## File Descriptions
 
-1. Build index: `bash index.sh <path_to_wiki_dump> <path_to_inverted_index_directory> <path_to_stat_file>`.
-2. Search: `bash search.sh <path_to_inverted_index_directory> <query_string>`
+`constants.py`
+As the name suggests, it contains important constants.
 
-## Performance
+`file_mappings.py`
+It contains functions to get file names of index files depending on token, doc number, etc.
 
-On a data size of ~190 MB:
+`helper.py`
+Contains helper functions for tokenization, text cleaning, etc.
 
-1. Index is built in ~120 seconds
-2. Index size is ~27 MB
+`index.py`
+Contains code for `Index` class. Used for adding token in index, searching, compressing, decompressing, etc.
+
+`indexer.py`
+Main code for indexing whole data
+
+`number_system`
+Contains code for `NumberSystem` class. Used to encode and decode decimal numbers to base 64.
+
+`search.py`
+Main code for searching
+
+`stop_words.py` and `stemmed_stop_words.py`
+Contains list of stop words
+
+`stemmer.py`
+Contains code for `Stemmer` class. Used to stem tokens
