@@ -149,4 +149,4 @@ while True:
     if not line:
         break
 
-    search(line[:-1], output_file)
+    search(line, output_file)
