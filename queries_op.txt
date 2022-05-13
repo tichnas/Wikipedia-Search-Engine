@@ -1,0 +1,13 @@
+6289115: American football
+1045888: History of American football
+43874: United States Football League
+15098017: Modern history of American football
+3207681: Rutgers Scarlet Knights football
+18677559: 2019 Navy Midshipmen football team
+3090607: Virginia Cavaliers football
+2689381: United States men's national American football team
+89224: Paterson, New Jersey
+61533: Springfield, Massachusetts
+
+Time taken: 6.036 seconds
+

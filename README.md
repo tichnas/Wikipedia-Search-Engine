@@ -4,6 +4,8 @@
 
 Provide efficient search results on Wikipedia data of huge size.
 
+Please read `IRE_Miniproject_Phase2_Requirements.pdf` for more details.
+
 ## Installation
 
 1. Ensure Python 3.8+ & `pip` is installed.
